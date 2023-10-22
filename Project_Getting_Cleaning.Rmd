@@ -1,0 +1,208 @@
+---
+title: "Week 4 Project - Getting and Cleaning"
+author: "J. Rafael Zárate-Salazar"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+# Load packages
+
+```{r }
+library(tidyverse)
+library(here)
+```
+
+# Load Data Base
+
+# Get Test Data
+
+```{r}
+
+xtest <- read.table( file = here::here("Getdata_projectfile","UCI_HAR_Dataset","test","X_test.txt")
+                     ,header = FALSE)
+
+ytest <- read.table( file = here::here("Getdata_projectfile","UCI_HAR_Dataset","test","y_test.txt")
+                      ,header = FALSE)
+
+```
+
+# Get Train Data
+
+```{r}
+
+xtrain <- read.table( file = here::here("Getdata_projectfile","UCI_HAR_Dataset","train","X_train.txt")
+                     ,header = FALSE)
+
+ytrain <- read.table( file = here::here("Getdata_projectfile","UCI_HAR_Dataset","train","y_train.txt")
+                      ,header = FALSE)
+
+```
+
+# Get Features Data
+
+```{r}
+
+features <- read.table( file = here::here("Getdata_projectfile","UCI_HAR_Dataset","features.txt")
+                       ,header = FALSE)
+
+```
+
+# Get Activity Data
+
+```{r}
+
+activity <- read.table( file = here::here("Getdata_projectfile","UCI_HAR_Dataset","activity_labels.txt")
+                       ,header = FALSE)
+
+```
+
+# Get Subject Data
+
+## Substest
+
+```{r}
+
+subtest <- read.table( file = here::here("Getdata_projectfile","UCI_HAR_Dataset","test","subject_test.txt")
+                      ,header = FALSE)
+
+subtest <- subtest %>%
+  dplyr::rename(subjectID = V1)
+
+```
+
+## Substrain
+
+```{r}
+
+subtrain <- read.table( file = here::here("Getdata_projectfile","UCI_HAR_Dataset","train","subject_train.txt")
+                     ,header = FALSE)
+
+subtrain <- subtrain %>%
+  dplyr::rename(subjectID = V1)
+
+```
+
+# Add column names to both train and test data
+
+```{r}
+
+features <- features[,2]
+featrasp <- t(features)
+
+colnames(xtrain) <- featrasp
+colnames(xtest) <- featrasp
+
+```
+
+# Rename activity columns to id and actions
+
+```{r}
+
+colnames(activity) <- c('id','actions')
+
+```
+
+# Row bind xtrain and xtest 
+
+```{r}
+
+combineX <- rbind(xtrain, xtest) 
+
+```
+
+# Row bind ytrain and ytest
+
+```{r}
+
+combineY <- rbind(ytrain, ytest)
+
+```
+
+# Row bind subject train and subject test
+
+```{r}
+
+combineSubj <- rbind(subtrain,subtest)
+
+```
+
+# Column bind Y and X, except for activity 
+
+```{r}
+
+joinXY <- cbind(combineY,combineX, combineSubj)
+
+```
+
+# 1. Joining the above data frame with the activity
+
+```{r, message=FALSE,warning=FALSE}
+
+db <- merge(joinXY, activity, by.x = 'V1', by.y = 'id')
+
+```
+
+
+# 2. Getting the mean and standard deviation
+
+```{r}
+
+colNames <- colnames(db)
+
+db.final <- db %>%
+  dplyr::select(actions, subjectID, stringr::str_subset(colNames,"\\bmean\\b|\\bstd\\b"))
+
+```
+
+# Transform activity to a factor variable 
+
+```{r}
+
+db.final$actions <- as.factor(db.final$actions)
+
+```
+
+# 3 and 4. Use descriptive activity names to name the activities in the data set
+
+```{r}
+
+colnames(db.final) <- gsub("^t", "time", colnames(db.final))
+colnames(db.final) <- gsub("^f", "frequency", colnames(db.final))
+colnames(db.final) <- gsub("Acc", "Accelerometer", colnames(db.final))
+colnames(db.final) <- gsub("Gyro", "Gyroscope", colnames(db.final))
+colnames(db.final) <- gsub("Mag", "Magnitude", colnames(db.final))
+colnames(db.final) <- gsub("BodyBody", "Body", colnames(db.final))
+
+```
+
+# 5. Creates a second data set with the average of each variable for activity and subject.
+
+```{r}
+
+db.final <- db.final %>% 
+  dplyr::group_by(actions,subjectID) %>% 
+  dplyr::arrange(desc(actions)) %>% 
+  dplyr::summarise_all(mean) %>% 
+  dplyr::select(subjectID,everything())
+
+db.final
+
+```
+
+# Save binary data
+
+```{r}
+
+# save(db.final, file = here::here("Getdata_projectfile","UCI_HAR_Dataset","tidydata.rda"))
+
+```
+
+
+# Text file for final output
+
+```{r}
+
+# write.table(db.final, file = here::here("Getdata_projectfile","UCI_HAR_Dataset","tidydata.txt")
+#                                     ,row.name = FALSE)
+
+```
